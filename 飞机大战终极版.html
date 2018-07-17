@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<link rel="stylesheet" href="dahuiji.css" />
+</head>
+<body>
+	<div id="body_main" class="main">
+			<ul id="options" class="options">
+				<li value="1">修罗模式</li>
+				<li value="2">地狱模式</li>
+				<li value="3">困难模式</li>
+				<li value="4">开挂了吧</li>
+			</ul>
+	</div>
+</body>	
+<script src="js/jquery-3.2.1.js"></script>
+<script>
+	// $(function(){
+	// 	alert(1);
+	// })
+	// (function(){
+	// })()
+
+	+function($){
+		//1. 优化性能;
+		//2. 防止命名冲突;
+		// console.log($);
+		// 引擎对象;
+		function Engine(){}////函数自调用 防止其他 $ 污染 jQuery $ 可以优化性能
+		$.extend(Engine.prototype,{
+			init:function(){//引擎初始化
+				this.mainElem = $("#body_main");  //主体内容区
+				this.option = $("#options");    //主体内容区里的ul
+				this.optionsElem = $("#options li");   //难度选择
+				this.handleClick();//点击选择难度
+			},
+			//绑定事件功能;
+			handleClick:function(){
+				// this.optionsElem.on("click",this.passMove.bind(this))
+				// $.proxy === bind
+				// $. proxy (function , context);  ==  function.bind(context)
+				// 在函数体上更改this指向;
+				this.optionsElem.on("click",$.proxy(this.passMove,this));// 选择难度点击事件 过场动画  改变函数里this的指向   
+			},
+			//过场动画功能
+			passMove:function(event){
+				// console.log(this);
+				// this????
+				// --satrt 元素退场 --- 
+				var target = event.target || event.srcElement;//事件源 
+				// console.log($(target).index());
+				//游戏等级;
+				// 0 超级困难 1 非常困难  2 比较困难 3 就选我吧
+				this.level = $(target).index();//游戏等级;
+				this.option.remove();//删除ul
+				// --end 元素退场 --- 
+				// --start  元素入场--- 
+				var logo = createElem("logo");//创建logo
+				logo.slideDown(); //logo动画
+				var loading = createElem("loading");//创建小飞机动画
+				loading.fadeIn();//小飞机入场
+				// --end  元素入场--- 
+				// --strat 动画 ---
+				// 飞机动画;
+				var index = 0;
+				var loadingTimer = setInterval(function(){
+					loading.css({ //通过路径改变loading飞机的状态   这个有点不懂...
+						background:"url(images/loading"+ (++index % 3 + 1) +".png) no-repeat"
+					})
+				},500)
+				// 背景动画;
+				var bgTimer = setInterval($.proxy(function(){
+					this.mainElem.css({ //背景动画的y轴每过80毫秒 向上移动10像素
+						backgroundPositionY:"+=10"
+					})
+				},this),80)
+				// --end 动画---;
+				// --start 动画终止 游戏开场;
+				setTimeout($.proxy(function(){
+					logo.fadeOut(function(){//logo退出后删除
+						logo.remove();
+					});
+					loading.fadeOut(function(){
+						loading.remove();// 小飞机退出后删除
+						clearInterval(loadingTimer);//清除小飞机定时器
+					});
+					this.startGame();//开始游戏
+				},this),1000)	
+				// --end 动画终止 游戏开场;
+			},
+			startGame:function(){
+				// console.log("游戏开始");
+				plane.init(this.level);
+				setInterval($.proxy(function(){
+					Math.random() > 0.5 ?new Enemy().init("small") : ""; //小飞机出场概率
+				},this),800)
+
+				setInterval($.proxy(function(){
+					Math.random() > 0.8 ?new Enemy().init("middle") : "";//中型飞机出场概率
+				},this),1200)
+
+				setInterval($.proxy(function(){
+					Math.random() > 0.9 ?new Enemy().init("large") : "";//大飞机出场概率
+				},this),1000)
+
+				// new Enemy().init("large")
+			}	
+		});
+
+		//飞机功能;
+		var plane = {
+			bulletArray:[], //记录子弹数组
+			init:function(level){ 
+				this.elem = createElem("my-warplain"); //创建飞机
+				this.elem.fadeIn();  //飞机入场动画
+				// 初始化飞机的位置;
+				this.position = {
+					x:document.documentElement.clientWidth / 2 - this.elem.width() / 2,  //飞机x轴起始位置
+					y:document.documentElement.clientHeight - this.elem.height(),       //飞机y轴起始位置
+				}
+				this.handleEvent(); 
+				this.planeMove(); //飞机移动
+				//开火;
+				var frequency ;
+				switch(level){ //根据困难难度设置子弹发射间隔
+					case 0: frequency = 800;        //难度困难 800毫秒一发子弹
+							break;
+					case 1:
+							frequency = 500;
+							break;
+					case 2:
+							frequency = 300;
+							break;
+					case 3:
+							frequency = 150;
+							break;
+				}
+				this.fireTimer = setInterval($.proxy(function(){
+						this.fire();  //开火
+				},this),frequency)
+			},
+			handleEvent:function(){
+				$(document).on("mousemove",$.proxy(function(event){   //飞机跟着鼠标移动
+					this.position.x = event.clientX - this.elem.width() / 2;
+					this.position.y = event.clientY - this.elem.height() / 2;
+					this.planeMove();
+				},this))
+				$(document).on("keydown",$.proxy(function(event){  //键盘控制飞机移动
+					var keyCode = event.keyCode || event.which;
+					switch(keyCode){
+						case 37:
+								this.position.x -= 20 ;
+								break;
+						case 38:
+								this.position.y -= 20 ;
+								break;
+						case 39:
+								this.position.x += 20 ;
+								break;
+						case 40:
+								this.position.y += 20;
+								break;
+					}
+					this.planeMove();
+				},this))
+			},
+			planeMove:function(){
+				var left = this.position.x;
+				// 边界检测; 一大一小;
+				var minLeft = $("#body_main").offset().left ; //最小值是main的左边值
+				var maxLeft = minLeft + $("#body_main").width() - this.elem.width() ; //最大值是 最小值 加上 main的宽度 减去飞机的宽度
+				left = left <= minLeft ? minLeft : left;       //飞机在main里最小值 
+				left = left >= maxLeft ? maxLeft : left;       //飞机在main里最大值 
+				
+				this.elem.css({
+					left:left,     //飞机的位置 
+					top:this.position.y
+				})
+			},
+			fire:function(){ //开火
+				var bullet = new Bullet(); //子弹实例化对象
+				var bullet2 = new Bullet2(); //子弹实例化对象
+				bullet.init(); //子弹初始化
+				bullet2.init(); //子弹初始化
+				this.bulletArray.push(bullet); //把子弹加入到子弹数组
+				this.bulletArray.push(bullet2);
+			}
+		}
+		// 子弹功能;
+		function Bullet2(){}
+		$.extend(Bullet2.prototype,{
+			init:function(){
+				this.elem = createElem("bullet"); //创建子弹
+				this.elem.show();   //子弹显示
+				this.bulletMove();  //子弹移动
+				// console.log(plane.position);
+				this.elem.css({//子弹在飞机头中部
+					left:plane.elem.offset().left + plane.elem.width() / 2 - this.elem.width() / 2 +  Math.round(Math.random()*100),  //左边的值等于 飞机的左值 加上飞机宽度的一半减去子弹宽度的一半
+					top:plane.elem.offset().top - this.elem.height() // 飞机的高度 加上子弹的高度(负值y就是向上)
+				})
+			},
+			bulletMove:function(){                 //子弹移动
+				this.bulletTimer = setInterval($.proxy(function(){ //设置子弹定时器
+					if(this.elem.offset().top <= 0){            //子弹在main顶点爆炸
+						this.bulletBoom();
+					}
+					this.elem.css({ //子弹以10的像素向y轴移动
+						top:"-=10"
+					})
+				},this),80) //每间隔80毫秒向上移动
+			},
+			bulletBoom:function(){
+				clearInterval(this.bulletTimer); //子弹爆炸清除子弹定时器
+				this.elem.addClass("bullet_die");     //子弹消失样式
+				setTimeout($.proxy(function(){ 
+					var index = plane.bulletArray.indexOf(this); // ????在数组中找到当前子弹子弹的下标
+					// console.log(index)
+					plane.bulletArray.splice(index,1);// 将当前子弹在数组中删除
+					this.elem.remove();	   //子弹清除
+				},this),50)
+			}
+		})
+		// 子弹功能;
+		function Bullet(){}
+		$.extend(Bullet.prototype,{
+			init:function(){
+				this.elem = createElem("bullet"); //创建子弹
+				this.elem.show();   //子弹显示
+				this.bulletMove();  //子弹移动
+				// console.log(plane.position);
+				this.elem.css({//子弹在飞机头中部
+					left:plane.elem.offset().left + plane.elem.width() / 2 - this.elem.width() / 2 - Math.round(Math.random()*100) ,  //左边的值等于 飞机的左值 加上飞机宽度的一半减去子弹宽度的一半
+					top:plane.elem.offset().top - this.elem.height() // 飞机的高度 加上子弹的高度(负值y就是向上)
+				})
+			},
+			bulletMove:function(){                 //子弹移动
+				this.bulletTimer = setInterval($.proxy(function(){ //设置子弹定时器
+					if(this.elem.offset().top <= 0){            //子弹在main顶点爆炸
+						this.bulletBoom();
+					}
+					this.elem.css({ //子弹以10的像素向y轴移动
+						top:"-=10"
+					})
+				},this),80) //每间隔80毫秒向上移动
+			},
+			bulletBoom:function(){
+				clearInterval(this.bulletTimer); //子弹爆炸清除子弹定时器
+				this.elem.addClass("bullet_die");     //子弹消失样式
+				setTimeout($.proxy(function(){ 
+					var index = plane.bulletArray.indexOf(this); // ????在数组中找到当前子弹子弹的下标
+					// console.log(index)
+					plane.bulletArray.splice(index,1);// 将当前子弹在数组中删除
+					this.elem.remove();	   //子弹清除
+				},this),50)
+			}
+		})
+
+		// 敌机;
+		function Enemy(){
+			// 1. 长得不一样 (背景图不同 class不同)
+			// 2. 耐揍程度不同 ( HP 血量 );
+			// 3. 速度是不一样的 ( speed );
+		}
+		$.extend(Enemy.prototype,{
+			init:function(type){
+				// 策略模式;
+				var strategy = {
+					small:function(){
+						this.elem = createElem("enemy-small");
+						this.elem.show();   // 显示小飞机
+						this.hp = 3;       //小飞机血量
+						this.speed = 15;    //小飞机速度
+					},
+					middle:function(){
+						this.elem = createElem("enemy-middle");
+						this.elem.show();
+						this.hp = 15;
+						this.speed = 5;
+					},
+					large:function(){
+						this.elem = createElem("enemy-large");
+						this.elem.show();
+						this.hp = 20;
+						this.speed = 2;
+					}
+				}
+				strategy[type].call(this);//不是很确定 type应该是三种敌机
+				// 类型 ; small middle large;
+				// console.log(this);
+				// console.log(this.enemyRandomPosition());
+				this.elem.css({
+					top:-100,  //敌机起始位置
+					left:this.enemyRandomPosition()//左右随机位置
+				})
+
+				this.enemyMove();//敌机开始移动
+			},
+			enemyRandomPosition:function(){     // 飞机出现的随机位置
+				var minLeft = $("#body_main").offset().left;    //最小左边的值 main的左边值
+				var maxLeft = minLeft + $("#body_main").width() - this.elem.width(); //最大值是最小值加上main的宽度减去敌机的宽度
+				return minLeft + Math.round(Math.random() * (maxLeft - minLeft)); //在main的宽度里随机出现的位置
+			},
+			enemyMove:function(){ //敌机移动
+				this.enemyTimer = setInterval($.proxy(function(){ //设置敌机移动的定时器
+					this.elem.css({  //敌机移动速度
+						top:"+="+this.speed
+					})
+					this.collision(); //碰撞
+				},this),80)
+			},
+			collision:function(){     //碰撞检测 
+				// console.log(plane.bulletArray);
+				var minLeft = this.elem.offset().left - 7; //左边最小值 敌机的左边值减去子弹的宽度
+				var maxLeft = this.elem.offset().left + this.elem.width(); //最大值 是最小值加上敌机的宽度
+
+
+				var minTop = this.elem.offset().top - 18; //下面最大值是 敌机高度减去子弹的高度
+				var maxTop = this.elem.offset().top + this.elem.height(); //上面的最大值是敌机的高度加上敌机与main的高度
+
+				for(var bullet in plane.bulletArray){   //循环检测子弹数组
+					var bulletLeft = plane.bulletArray[bullet].elem.offset().left  //飞机子弹的左边值
+					var bulletTop = plane.bulletArray[bullet].elem.offset().top //飞机子弹高度值
+					//先检测left碰撞; 
+					if(bulletLeft > minLeft && bulletLeft < maxLeft){       //子弹左值大于敌机最小左值并且小于敌机最大值  碰撞发生
+						// console.log("left值碰撞");
+						//检测top值的碰撞;
+						if(bulletTop > minTop && bulletTop < maxTop){   //子弹高度大于敌机高度 碰撞发生
+							// console.log("碰撞");
+							plane.bulletArray[bullet].bulletBoom(); //讲碰撞的子弹在数组中删除
+							this.hp-- //敌机hp减少
+						}
+					}
+				}
+				var miLeft = this.elem.offset().left - 98;   //检测敌机与飞机的碰撞 敌机最小左值减去飞机宽度
+				var maLeft = this.elem.offset().left + this.elem.width();  //敌机左值加上敌机宽度
+				var miTop = this.elem.offset().top - 122;                   //敌机高度减去飞机高度
+				var maTop = this.elem.offset().top + this.elem.height();    //敌机高度加上敌机高度
+				
+				if(plane.elem.offset().left > miLeft && plane.elem.offset().left < maLeft){ //检测碰撞
+					if(plane.elem.offset().top > miTop && plane.elem.offset().top < maTop ){
+						alert("大虾请重新来过吧--菜狗子还不选个简单的")
+						location.reload(); // 如果碰撞游戏结束
+					}
+				}
+				if(this.hp <= 0){    //敌机hp为0时敌机爆炸
+					this.enemyBoom();
+				}
+			},
+			enemyBoom:function(){  //敌机爆炸
+				clearInterval(this.enemyTimer);
+				this.elem.remove();
+			}
+		})
+
+		function createElem(className){ 
+			var elem = $("<div></div>");
+			elem.addClass(className);
+			elem.hide();
+			$("body").append(elem);
+			return elem;
+		}
+		var engine = new Engine();
+		engine.init();
+	}(jQuery)
+</script>
+</html>	
